@@ -1,15 +1,37 @@
 {
-    "name": "Gammu SMSD",
-    "version": "1.0",
-    "slug": "gammu_smsd",
-    "description": "Send SMS via Huawei modem using Gammu",
-    "arch": ["armv7", "armhf", "aarch64", "amd64", "i386"],
-    "startup": "services",
-    "boot": "auto",
-    "options": {},
-    "schema": {},
-    "host_network": true,
-    "devices": ["/dev/ttyUSB0", "/dev/ttyUSB1", "/dev/ttyUSB2"],
-    "privileged": ["SYS_ADMIN"],
-    "dockerfile": true
+  "name": "Gammu SMSD",
+  "version": "1.1",
+  "slug": "gammu_smsd",
+  "description": "Send/receive SMS via Huawei modem using Gammu",
+  "arch": ["armv7", "armhf", "aarch64", "amd64", "i386"],
+  "startup": "services",
+  "boot": "auto",
+
+  "host_network": true,
+  "udev": true,
+
+  "devices": ["/dev/ttyUSB0", "/dev/ttyUSB1", "/dev/ttyUSB2"],
+
+  "privileged": [],
+
+  "options": {
+    "device": "/dev/ttyUSB0",
+    "pin": "",
+    "smsc": "",
+    "log_level": "info",
+    "check_interval": 10,
+    "receive": true,
+    "delete_after_recv": false
+  },
+  "schema": {
+    "device": "str",
+    "pin": "str?",
+    "smsc": "str?",
+    "log_level": "list(info|debug|error)",
+    "check_interval": "int(5,300)",
+    "receive": "bool",
+    "delete_after_recv": "bool"
+  },
+
+  "dockerfile": true
 }
