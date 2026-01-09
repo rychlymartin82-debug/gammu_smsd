@@ -9,7 +9,7 @@
   "init": false,
   "map": ["config:ro", "share:rw", "addons:rw", "ssl"],
   "options": {
-    "device": "/dev/serial/by-id/usb-HUAWEI_HUAWEI_Mobile-if00-port0",
+    "device": "/dev/ttyUSB2",
     "pin": "",
     "smsc": "",
     "log_level": "info",
@@ -19,7 +19,7 @@
     "mqtt_host": "core-mosquitto",
     "mqtt_port": 1883,
     "mqtt_user": "smsd",
-    "mqtt_pass": "EmA605285285",
+    "mqtt_pass": "Ema605285285",
     "mqtt_outgoing_topic": "Ourplace/SMS/Outgoing"
   },
   "schema": {
@@ -37,6 +37,11 @@
     "mqtt_outgoing_topic": "str"
   },
   "ports": {},
-  "devices": ["/dev/ttyUSB0", "/dev/ttyUSB1", "/dev/ttyUSB2", "/dev/serial/by-id"],
+  "devices": [
+    "/dev/ttyUSB0",
+    "/dev/ttyUSB1",
+    "/dev/ttyUSB2",
+    "/dev/serial/by-id"
+  ],
   "privileged": ["SYS_ADMIN", "SYS_TIME"]
 }
