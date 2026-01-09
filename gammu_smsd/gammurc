@@ -2,4 +2,16 @@
 device = /dev/serial/by-id/usb-HUAWEI_HUAWEI_Mobile-if00-port0
 connection = at
 
+[smsd]
+service = files
+logfile = /data/smsd.log
+debuglevel = 1
+CheckSecurity = 0
+StatusFrequency = 10
+InboxPath = /data/inbox/
+OutboxPath = /data/outbox/
+SentSMSPath = /data/sent/
+ErrorSMSPath = /data/error/
+RunOnReceive = /usr/local/bin/mqtt_bridge.sh
+
 
