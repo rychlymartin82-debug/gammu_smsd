@@ -1,47 +1,37 @@
+cat > config.json << 'EOF'
 {
-  "name": "Gammu SMSD",
-  "version": "1.0.0",
-  "slug": "gammu_smsd",
-  "description": "SMS gateway using Gammu with MQTT bridge",
-  "arch": ["amd64", "armv7", "aarch64"],
-  "startup": "services",
+  "name": "SMS Gateway",
+  "version": "1.0.3",
+  "slug": "sms_gateway",
+  "description": "SMS Gateway using Gammu SMSD with MQTT",
+  "arch": ["armhf", "armv7", "aarch64", "amd64", "i386"],
+  "startup": "application",
   "boot": "auto",
-  "init": false,
-  "map": ["config:ro", "share:rw", "addons:rw", "ssl"],
+  "ports": {},
+  "ports_description": {},
+  "devices": ["/dev/ttyUSB2:/dev/ttyUSB2:rwm"],
+  "auto_uart": false,
+  "homeassistant_api": false,
+  "hassio_api": true,
+  "hassio_role": "default",
+  "auth_api": false,
+  "ingress": false,
+  "panel_icon": "mdi:message-text",
   "options": {
     "device": "/dev/ttyUSB2",
-    "pin": "",
-    "smsc": "",
-    "log_level": "info",
-    "check_interval": 10,
-    "receive": true,
-    "delete_after_recv": false,
     "mqtt_host": "core-mosquitto",
     "mqtt_port": 1883,
     "mqtt_user": "smsd",
-    "mqtt_pass": "Ema605285285",
-    "mqtt_outgoing_topic": "Ourplace/SMS/Outgoing"
+    "mqtt_password": "EmA605285285",
+    "mqtt_topic": "Ourplace/SMS/Outgoing"
   },
   "schema": {
     "device": "str",
-    "pin": "str?",
-    "smsc": "str?",
-    "log_level": "str",
-    "check_interval": "int",
-    "receive": "bool",
-    "delete_after_recv": "bool",
     "mqtt_host": "str",
     "mqtt_port": "int",
     "mqtt_user": "str",
-    "mqtt_pass": "str",
-    "mqtt_outgoing_topic": "str"
-  },
-  "ports": {},
-  "devices": [
-    "/dev/ttyUSB0",
-    "/dev/ttyUSB1",
-    "/dev/ttyUSB2",
-    "/dev/serial/by-id"
-  ],
-  "privileged": ["SYS_ADMIN", "SYS_TIME"]
+    "mqtt_password": "password",
+    "mqtt_topic": "str"
+  }
 }
+EOF
