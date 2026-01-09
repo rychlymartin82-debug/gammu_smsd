@@ -19,7 +19,7 @@
     "mqtt_host": "core-mosquitto",
     "mqtt_port": 1883,
     "mqtt_user": "smsd",
-    "mqtt_pass": "EmA605285285",
+    "mqtt_pass": "Ema605285285",
     "mqtt_outgoing_topic": "Ourplace/SMS/Outgoing"
   },
   "schema": {
