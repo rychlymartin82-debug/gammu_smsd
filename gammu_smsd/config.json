@@ -3,11 +3,22 @@
   "version": "1.0.0",
   "slug": "gammu_smsd",
   "description": "SMS gateway using Gammu with MQTT bridge",
+  "arch": [
+    "amd64",
+    "armv7",
+    "aarch64"
+  ],
   "startup": "services",
   "boot": "auto",
-  "ports": {},
+  "init": false,
+  "map": [
+    "config:ro",
+    "share:rw",
+    "addons:rw",
+    "ssl"
+  ],
   "options": {
-    "device": "",
+    "device": "/dev/serial/by-id/usb-HUAWEI_HUAWEI_Mobile-if00-port0",
     "pin": "",
     "smsc": "",
     "log_level": "info",
@@ -16,8 +27,8 @@
     "delete_after_recv": false,
     "mqtt_host": "core-mosquitto",
     "mqtt_port": 1883,
-    "mqtt_user": "",
-    "mqtt_pass": "",
+    "mqtt_user": "smsd",
+    "mqtt_pass": "EmA605285285",
     "mqtt_outgoing_topic": "Ourplace/SMS/Outgoing"
   },
   "schema": {
@@ -33,5 +44,17 @@
     "mqtt_user": "str",
     "mqtt_pass": "str",
     "mqtt_outgoing_topic": "str"
-  }
+  },
+  "services": [],
+  "ports": {},
+  "devices": [
+    "/dev/ttyUSB0",
+    "/dev/ttyUSB1",
+    "/dev/ttyUSB2",
+    "/dev/serial/by-id"
+  ],
+  "privileged": [
+    "SYS_ADMIN",
+    "SYS_TIME"
+  ]
 }
