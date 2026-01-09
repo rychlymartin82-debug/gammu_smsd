@@ -1,8 +1,8 @@
 {
-  "gammu_smsd": {
-    "name": "gammu_smsd",
+  "gammu_smsd_addon": {
+    "name": "gammu_smsd_addon",
     "description": "SMS gateway using Gammu SMSD",
-    "slug": "gammu_smsd",
+    "slug": "gammu_smsd_addon",
     "url": "https://github.com/rychlymartin82-debug/gammu_smsd",
     "maintainer": "Martin Rychlý"
   }
