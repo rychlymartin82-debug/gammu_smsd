@@ -1,5 +1,5 @@
 {
-  "SMS_addon": {
+  "gammu_smsd": {
     "name": "gammu_smsd",
     "description": "SMS gateway using Gammu SMSD",
     "slug": "gammu_smsd",
