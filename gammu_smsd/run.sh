@@ -1,83 +1,49 @@
-#!/bin/bash
+#!/bin/sh
 set -e
 
-echo "=========================================="
-echo "🚀 GAMMU SMS GATEWAY STARTING"
-echo "=========================================="
+OPTIONS_FILE="/data/options.json"
 
-CONFIG_PATH=/data/options.json
-SMSD_CONFIG=/data/smsd.conf
-SMSD_LOG=/data/smsd.log
+DEVICE=$(jq -r '.device' "$OPTIONS_FILE")
+PIN=$(jq -r '.pin' "$OPTIONS_FILE")
+SMSC=$(jq -r '.smsc' "$OPTIONS_FILE")
+LOG_LEVEL=$(jq -r '.log_level' "$OPTIONS_FILE")
+CHECK_INTERVAL=$(jq -r '.check_interval' "$OPTIONS_FILE")
+RECEIVE=$(jq -r '.receive' "$OPTIONS_FILE")
+DELETE_AFTER_RECV=$(jq -r '.delete_after_recv' "$OPTIONS_FILE")
 
-# Parse config
-DEVICE=$(grep -Po '"device":\s*"\K[^"]+' $CONFIG_PATH)
-MQTT_HOST=$(grep -Po '"mqtt_host":\s*"\K[^"]+' $CONFIG_PATH)
-MQTT_PORT=$(grep -Po '"mqtt_port":\s*\K[0-9]+' $CONFIG_PATH)
-MQTT_USER=$(grep -Po '"mqtt_user":\s*"\K[^"]+' $CONFIG_PATH)
-MQTT_PASS=$(grep -Po '"mqtt_password":\s*"\K[^"]+' $CONFIG_PATH)
-MQTT_TOPIC=$(grep -Po '"mqtt_topic":\s*"\K[^"]+' $CONFIG_PATH)
+MQTT_HOST=$(jq -r '.mqtt_host' "$OPTIONS_FILE")
+MQTT_PORT=$(jq -r '.mqtt_port' "$OPTIONS_FILE")
+MQTT_USER=$(jq -r '.mqtt_user' "$OPTIONS_FILE")
+MQTT_PASS=$(jq -r '.mqtt_pass' "$OPTIONS_FILE")
+MQTT_TOPIC_OUT=$(jq -r '.mqtt_outgoing_topic' "$OPTIONS_FILE")
 
-echo "📱 Device: $DEVICE"
-echo "🌐 MQTT: $MQTT_HOST:$MQTT_PORT"
-echo "👤 User: $MQTT_USER"
-echo "📬 Topic: $MQTT_TOPIC"
-echo "=========================================="
+export MQTT_HOST MQTT_PORT MQTT_USER MQTT_PASS MQTT_TOPIC_OUT
 
-# Check device exists
-if [ ! -e "$DEVICE" ]; then
-    echo "❌ ERROR: Device $DEVICE not found!"
-    echo "Available devices:"
-    ls -la /dev/ttyUSB* 2>/dev/null || echo "No ttyUSB devices!"
-    exit 1
-fi
+echo "Using device: $DEVICE"
+echo "MQTT: host=$MQTT_HOST port=$MQTT_PORT user=$MQTT_USER topic=$MQTT_TOPIC_OUT"
 
-echo "✅ Device found: $DEVICE"
+mkdir -p /data/inbox /data/outbox /data/sent /data/error
 
-# Create SMSD config
-cat > $SMSD_CONFIG << ENDCONF
+cat > /etc/gammu-smsdrc <<EOF
 [gammu]
 device = $DEVICE
 connection = at
 
 [smsd]
 service = files
-logfile = $SMSD_LOG
+logfile = /data/smsd.log
 debuglevel = 1
-inboxpath = /data/inbox/
-outboxpath = /data/outbox/
-sentsmspath = /data/sent/
-errorsmspath = /data/error/
+CheckSecurity = 0
+StatusFrequency = $CHECK_INTERVAL
+InboxPath = /data/inbox/
+OutboxPath = /data/outbox/
+SentSMSPath = /data/sent/
+ErrorSMSPath = /data/error/
+RunOnReceive = /usr/local/bin/mqtt_bridge.sh
+EOF
 
-RunOnReceive = /app/on_receive.sh
+echo "Waiting for modem to settle..."
+sleep 10
 
-PhoneID = SMSGateway
-User = $MQTT_USER
-Password = $MQTT_PASS
-Host = $MQTT_HOST:$MQTT_PORT
-ClientID = gammu_smsd
-
-[include_numbers]
-number1 = *
-ENDCONF
-
-# Create directories
-mkdir -p /data/{inbox,outbox,sent,error}
-
-echo "⏳ Waiting for modem to initialize (15s)..."
-sleep 15
-
-echo "🔍 Testing modem connection..."
-if gammu --config $SMSD_CONFIG identify; then
-    echo "✅ Modem connected successfully!"
-else
-    echo "❌ Modem test failed!"
-    echo "Trying to get more info..."
-    gammu --config $SMSD_CONFIG identify 2>&1 || true
-    exit 1
-fi
-
-echo "=========================================="
-echo "🚀 Starting SMSD daemon..."
-echo "=========================================="
-
-exec gammu-smsd --config $SMSD_CONFIG --pid /var/run/smsd.pid
+echo "Starting gammu-smsd..."
+exec gammu-smsd -c /etc/gammu-smsdrc -d
