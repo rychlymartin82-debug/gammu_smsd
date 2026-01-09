@@ -1,66 +1,71 @@
-#!/bin/sh
-set -e
+#!/usr/bin/with-contenv bashio
 
-OPTIONS_FILE="/data/options.json"
+CONFIG_PATH=/data/options.json
+SMSD_CONFIG=/data/smsd.conf
+SMSD_LOG=/data/smsd.log
 
-DEVICE=$(jq -r '.device' "$OPTIONS_FILE")
-PIN=$(jq -r '.pin' "$OPTIONS_FILE")
-SMSC=$(jq -r '.smsc' "$OPTIONS_FILE")
-LOG_LEVEL=$(jq -r '.log_level' "$OPTIONS_FILE")
-CHECK_INTERVAL=$(jq -r '.check_interval' "$OPTIONS_FILE")
-RECEIVE=$(jq -r '.receive' "$OPTIONS_FILE")
-DELETE_AFTER_RECV=$(jq -r '.delete_after_recv' "$OPTIONS_FILE")
+# Read options
+DEVICE=$(bashio::config 'device')
+MQTT_HOST=$(bashio::config 'mqtt_host')
+MQTT_PORT=$(bashio::config 'mqtt_port')
+MQTT_USER=$(bashio::config 'mqtt_user')
+MQTT_PASS=$(bashio::config 'mqtt_password')
+MQTT_TOPIC=$(bashio::config 'mqtt_topic')
 
-MQTT_HOST=$(jq -r '.mqtt_host' "$OPTIONS_FILE")
-MQTT_PORT=$(jq -r '.mqtt_port' "$OPTIONS_FILE")
-MQTT_USER=$(jq -r '.mqtt_user' "$OPTIONS_FILE")
-MQTT_PASS=$(jq -r '.mqtt_pass' "$OPTIONS_FILE")
-MQTT_TOPIC_OUT=$(jq -r '.mqtt_outgoing_topic' "$OPTIONS_FILE")
+bashio::log.info "Log filename is \"$SMSD_LOG\""
+bashio::log.info ""
+bashio::log.info "Using device: $DEVICE"
+bashio::log.info "MQTT: host=$MQTT_HOST port=$MQTT_PORT user=$MQTT_USER topic=$MQTT_TOPIC"
 
-export MQTT_HOST MQTT_PORT MQTT_USER MQTT_PASS MQTT_TOPIC_OUT
-
-echo "Using device: $DEVICE"
-echo "MQTT: host=$MQTT_HOST port=$MQTT_PORT user=$MQTT_USER topic=$MQTT_TOPIC_OUT"
-
-mkdir -p /data/inbox /data/outbox /data/sent /data/error
-
-cat > /etc/gammu-smsdrc <<EOF
+# Create SMSD config
+cat > $SMSD_CONFIG << EOF
 [gammu]
 device = $DEVICE
 connection = at
 
 [smsd]
 service = files
-logfile = /data/smsd.log
+logfile = $SMSD_LOG
 debuglevel = 1
-CheckSecurity = 0
-StatusFrequency = $CHECK_INTERVAL
-InboxPath = /data/inbox/
-OutboxPath = /data/outbox/
-SentSMSPath = /data/sent/
-ErrorSMSPath = /data/error/
-RunOnReceive = /usr/local/bin/mqtt_bridge.sh
+inboxpath = /data/inbox/
+outboxpath = /data/outbox/
+sentsmspath = /data/sent/
+errorsmspath = /data/error/
+
+RunOnReceive = /app/on_receive.sh
+
+# MQTT Publishing
+PhoneID = SMSGateway
+User = $MQTT_USER
+Password = $MQTT_PASS
+Host = $MQTT_HOST:$MQTT_PORT
+ClientID = smsd_gateway
+
+[include_numbers]
+number1 = *
 EOF
 
-# wait for device node to appear (max 30 s)
-echo "Waiting for device node $DEVICE to appear..."
-for i in $(seq 1 30); do
-  if [ -e "$DEVICE" ]; then
-    echo "Device node found"
-    break
-  fi
-  sleep 1
-done
+# Create directories
+mkdir -p /data/{inbox,outbox,sent,error}
 
-# wait for modem to respond to gammu identify (max 40 s)
-echo "Waiting for modem to respond to AT commands..."
-for i in $(seq 1 40); do
-  if gammu --identify -c /etc/gammu-smsdrc >/dev/null 2>&1; then
-    echo "Modem responded"
-    break
-  fi
-  sleep 1
-done
+bashio::log.info "Waiting for modem to settle..."
+sleep 10
 
-echo "Starting gammu-smsd..."
-exec gammu-smsd -c /etc/gammu-smsdrc -d
+# Test modem connection FIRST
+bashio::log.info "Testing modem connection..."
+gammu --config $SMSD_CONFIG identify 2>&1 | tee /tmp/gammu_test.log
+
+if [ $? -ne 0 ]; then
+    bashio::log.error "❌ MODEM CONNECTION FAILED!"
+    bashio::log.error "Error details:"
+    cat /tmp/gammu_test.log
+    exit 1
+fi
+
+bashio::log.info "✅ Modem connected successfully"
+
+# Start SMSD with error output
+bashio::log.info "Starting gammu-smsd..."
+gammu-smsd --config $SMSD_CONFIG --pid /var/run/smsd.pid 2>&1 | while IFS= read -r line; do
+    bashio::log.info "SMSD: $line"
+done
