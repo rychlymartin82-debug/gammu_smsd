@@ -1,81 +1,57 @@
-#!/bin/bash
-set -euo pipefail
+#!/bin/sh
+set -e
 
 OPTIONS_FILE="/data/options.json"
 
-# --- Add-on options (z HA UI) ---
-DEVICE=$(jq -r '.device // "/dev/serial/by-id/usb-HUAWEI_HUAWEI_Mobile-if00-port0"' "$OPTIONS_FILE")
-PIN=$(jq -r '.pin // ""' "$OPTIONS_FILE")
-SMSC=$(jq -r '.smsc // ""' "$OPTIONS_FILE")
-LOG_LEVEL=$(jq -r '.log_level // "info"' "$OPTIONS_FILE")
-CHECK_INTERVAL=$(jq -r '.check_interval // 10' "$OPTIONS_FILE")
-RECEIVE=$(jq -r '.receive // true' "$OPTIONS_FILE")
-DELETE_AFTER_RECV=$(jq -r '.delete_after_recv // false' "$OPTIONS_FILE")
+DEVICE=$(jq -r '.device' "$OPTIONS_FILE")
+PIN=$(jq -r '.pin' "$OPTIONS_FILE")
+SMSC=$(jq -r '.smsc' "$OPTIONS_FILE")
+LOG_LEVEL=$(jq -r '.log_level' "$OPTIONS_FILE")
+CHECK_INTERVAL=$(jq -r '.check_interval' "$OPTIONS_FILE")
+RECEIVE=$(jq -r '.receive' "$OPTIONS_FILE")
+DELETE_AFTER_RECV=$(jq -r '.delete_after_recv' "$OPTIONS_FILE")
 
-MQTT_HOST=$(jq -r '.mqtt_host // "core-mosquitto"' "$OPTIONS_FILE")
-MQTT_PORT=$(jq -r '.mqtt_port // 1883' "$OPTIONS_FILE")
-MQTT_USER=$(jq -r '.mqtt_user // ""' "$OPTIONS_FILE")
-MQTT_PASS=$(jq -r '.mqtt_pass // ""' "$OPTIONS_FILE")
-MQTT_TOPIC_OUT=$(jq -r '.mqtt_outgoing_topic // "Ourplace/SMS/Outgoing"' "$OPTIONS_FILE")
+MQTT_HOST=$(jq -r '.mqtt_host' "$OPTIONS_FILE")
+MQTT_PORT=$(jq -r '.mqtt_port' "$OPTIONS_FILE")
+MQTT_USER=$(jq -r '.mqtt_user' "$OPTIONS_FILE")
+MQTT_PASS=$(jq -r '.mqtt_pass' "$OPTIONS_FILE")
+MQTT_TOPIC_OUT=$(jq -r '.mqtt_outgoing_topic' "$OPTIONS_FILE")
 
-echo "Gammu SMSD starting..."
-echo "Device: $DEVICE, PIN: ${PIN:+(set)}, Log: $LOG_LEVEL, Interval: $CHECK_INTERVAL"
-echo "MQTT: host=$MQTT_HOST port=$MQTT_PORT topic=$MQTT_TOPIC_OUT user=${MQTT_USER:+(set)}"
-mkdir -p /data/inbox /data/outbox /data/sent /data/error
-touch /data/smsd.log
+echo "Using device: $DEVICE"
+echo "MQTT: host=$MQTT_HOST port=$MQTT_PORT user=$MQTT_USER topic=$MQTT_TOPIC_OUT"
 
-# --- /etc/gammurc ---
-cat >/etc/gammurc <<EOF
+# uložíme proměnné i pro mqtt_bridge.sh
+export MQTT_HOST MQTT_PORT MQTT_USER MQTT_PASS MQTT_TOPIC_OUT
+
+# vytvoření konfigu pro Gammu
+GAMMU_CONF="/etc/gammu-smsdrc"
+
+mkdir -p /etc
+
+cat > "$GAMMU_CONF" <<EOF
 [gammu]
-device = ${DEVICE}
-connection = at
-EOF
-
-# --- /etc/gammu-smsdrc ---
-cat >/etc/gammu-smsdrc <<EOF
-[gammu]
-device = ${DEVICE}
+device = $DEVICE
 connection = at
 
 [smsd]
 service = files
 logfile = /data/smsd.log
-debuglevel = ${LOG_LEVEL}
-checkinterval = ${CHECK_INTERVAL}
-
-inboxpath = /data/inbox
-outboxpath = /data/outbox
-sentpath  = /data/sent
-errorpath = /data/error
-
-${PIN:+init = AT+CPIN=${PIN}}
-${SMSC:+smsc = ${SMSC}}
-receive = ${RECEIVE}
-deleteafterreceive = ${DELETE_AFTER_RECV}
+debuglevel = 1
+RunOnReceive = /usr/local/bin/mqtt_bridge.sh
+CheckSecurity = 0
+StatusFrequency = $CHECK_INTERVAL
+InboxPath = /data/inbox/
+OutboxPath = /data/outbox/
+SentSMSPath = /data/sent/
+ErrorSMSPath = /data/error/
 EOF
 
-# --- Start SMSD na pozadí ---
-gammu-smsd --config /etc/gammu-smsdrc &
+mkdir -p /data/inbox /data/outbox /data/sent /data/error
 
-# --- MQTT subscriber: očekává JSON {"target":"+420...","message":"Text"} ---
-echo "Starting MQTT bridge..."
-AUTH_ARGS=()
-[[ -n "$MQTT_USER" ]] && AUTH_ARGS+=( -u "$MQTT_USER" )
-[[ -n "$MQTT_PASS" ]] && AUTH_ARGS+=( -P "$MQTT_PASS" )
+# pokud máš PIN, můžeme ho případně řešit zde (zatím nechám prázdné)
+if [ -n "$PIN" ]; then
+  echo "PIN is configured (but not auto-sent yet)."
+fi
 
-# mosquitto_sub automaticky reconnectuje; běží v popředí a drží život kontejneru
-mosquitto_sub -h "$MQTT_HOST" -p "$MQTT_PORT" -t "$MQTT_TOPIC_OUT" "${AUTH_ARGS[@]}" \
-| while read -r line; do
-    # Bezpečný parse JSONu; ignoruj nevalidní vstupy
-    TARGET=$(echo "$line" | jq -r '.target // empty' 2>/dev/null || true)
-    MESSAGE=$(echo "$line" | jq -r '.message // empty' 2>/dev/null || true)
-
-    if [[ -n "${TARGET:-}" && -n "${MESSAGE:-}" ]]; then
-        echo "Injecting SMS from MQTT → target=${TARGET}"
-        gammu-smsd-inject TEXT "$TARGET" -text "$MESSAGE" \
-          && echo "Queued to outbox" \
-          || echo "Inject failed"
-    else
-        echo "MQTT message ignored (missing target/message): $line"
-    fi
-done
+echo "Starting gammu-smsd..."
+exec gammu-smsd -c "$GAMMU_CONF" -d
