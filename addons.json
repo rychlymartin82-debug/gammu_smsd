@@ -1,0 +1,9 @@
+{
+  "SMS_addon": {
+    "name": "SMS_addon",
+    "description": "SMS gateway using Gammu SMSD",
+    "slug": "SMS_addon",
+    "url": "https://github.com/rychlymartin82-debug/SMS_addon",
+    "maintainer": "Martin Rychlý"
+  }
+}
