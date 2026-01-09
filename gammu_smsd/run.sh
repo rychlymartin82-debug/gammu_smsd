@@ -79,4 +79,3 @@ mosquitto_sub -h "$MQTT_HOST" -p "$MQTT_PORT" -t "$MQTT_TOPIC_OUT" "${AUTH_ARGS[
         echo "MQTT message ignored (missing target/message): $line"
     fi
 done
-``
