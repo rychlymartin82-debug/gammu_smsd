@@ -1,8 +1,6 @@
 {
-  "name": "Gammu SMSD Addon",
-  "url": "https://github.com/rychlymartin82-debug/gammu_smsd_addon_novy",
-  "maintainer": "Martin Rychlý",
-  "addons": [
-    "gammu_smsd"
-  ]
+  "name": "SMS Addon Repository",
+  "url": "https://github.com/rychlymartin82-debug/SMS_addon",
+  "maintainer": "Martin Rychlý"
 }
+
