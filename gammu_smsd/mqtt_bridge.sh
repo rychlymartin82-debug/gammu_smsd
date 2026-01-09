@@ -24,4 +24,3 @@ mosquitto_pub \
   -P "$MQTT_PASS" \
   -t "$MQTT_TOPIC_OUT" \
   -m "$MESSAGE"
-
